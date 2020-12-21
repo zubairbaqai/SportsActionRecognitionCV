@@ -36,7 +36,11 @@ def AnalyzeVideo(video_path,detection_graph, image_tensor, boxes, scores, classe
     height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
     fps = cap.get(cv2.CAP_PROP_FPS)
     crf=17
-    mot_tracker1 = Sort(max_age=3, min_hits=1, iou_threshold=0.15)
+
+    trackerBall=cv2.TrackerCSRT_create()
+    trackerHoop = cv2.TrackerCSRT_create()
+
+    #mot_tracker1 = Sort(max_age=3, min_hits=1, iou_threshold=0.15)
 
 
     writer = skvideo.io.FFmpegWriter('YOLO.avi',
@@ -70,6 +74,7 @@ def AnalyzeVideo(video_path,detection_graph, image_tensor, boxes, scores, classe
             #track_bbs_ids = mot_tracker1.update(dets)
 
             Boundingboxes=[]
+            OriginalImg = img.copy()
 
             for i, box in enumerate(boxesResult[0]):
                 if (scoresResult[0][i] > 0.5):
@@ -85,7 +90,10 @@ def AnalyzeVideo(video_path,detection_graph, image_tensor, boxes, scores, classe
 
                     xCoor = int(np.mean([xmin, xmax]))
                     yCoor = int(np.mean([ymin, ymax]))
+
                     if (classesResult[0][i] == 1):  # basketball
+                        trackerBall = cv2.TrackerCSRT_create()
+                        trackerBall.init(img, (xmin,ymin,xmax-xmin,ymax-ymin))
                         cv2.circle(img=img, center=(xCoor, yCoor), radius=10,
                                    color=(255, 0, 0), thickness=-1)
                         cv2.putText(img, "BALL", (xCoor - 50, yCoor - 50),
@@ -101,21 +109,27 @@ def AnalyzeVideo(video_path,detection_graph, image_tensor, boxes, scores, classe
                         cv2.putText(img, "HOOP", (xCoor - 65, yCoor - 65),
                                     cv2.FONT_HERSHEY_COMPLEX, 3, (48, 124, 255), 8)
 
+            (success, box) = trackerBall.update(img)
+
+            if(success):
+                (x, y, w, h) = [int(v) for v in box]
+                cv2.rectangle(img, (x, y), (x + w, y + h),
+                              (0, 255, 0), 2)
 
 
-            flag=False
-            Boundingboxes=np.asarray(Boundingboxes)
-            if(Boundingboxes.shape[0]==0):
-                flag=True
-                Boundingboxes=np.empty((0, 5))
-            else:
-                track_bbs_ids = mot_tracker1.update(Boundingboxes)
-
-
-
-            for i in track_bbs_ids:
-                cv2.rectangle(img, (int(i[0]), int(i[1])),
-                              (int(i[2]), int(i[3])), (48, 124, 255), 3)
+            # flag=False
+            # Boundingboxes=np.asarray(Boundingboxes)
+            # if(Boundingboxes.shape[0]==0):
+            #     flag=True
+            #     Boundingboxes=np.empty((0, 5))
+            # else:
+            #     track_bbs_ids = mot_tracker1.update(Boundingboxes)
+            #
+            # #mot_tracker1.
+            #
+            # for i in track_bbs_ids:
+            #     cv2.rectangle(img, (int(i[0]), int(i[1])),
+            #                   (int(i[2]), int(i[3])), (48, 124, 255), 3)
 
 
 
@@ -129,5 +143,5 @@ def AnalyzeVideo(video_path,detection_graph, image_tensor, boxes, scores, classe
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     detection_graph, image_tensor, boxes, scores, classes, num_detections = tensorflow_init()
-    AnalyzeVideo("./Videos/qb nabaa basketball 1.mp4",detection_graph, image_tensor, boxes, scores, classes, num_detections)
+    AnalyzeVideo("./Videos/qb basketball zayd nabaa 1.mp4",detection_graph, image_tensor, boxes, scores, classes, num_detections)
 
