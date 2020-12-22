@@ -38,9 +38,9 @@ def AnalyzeVideo(video_path,detection_graph, image_tensor, boxes, scores, classe
     crf=17
 
     trackerBall=cv2.TrackerCSRT_create()
-    # trackerHoop = cv2.TrackerCSRT_create()
+    trackerHoop = cv2.TrackerCSRT_create()
 
-    BallIDTracker = Sort(max_age=3, min_hits=1, iou_threshold=0.15)
+    # BallIDTracker = Sort(max_age=3, min_hits=1, iou_threshold=0.15)
 
 
     writer = skvideo.io.FFmpegWriter('YOLO.avi',
@@ -58,6 +58,7 @@ def AnalyzeVideo(video_path,detection_graph, image_tensor, boxes, scores, classe
 
 
     BallTrackerInitialized=False
+    HoopTrackerInitialized=False
 
 
     with tf.Session(graph=detection_graph) as sess:
@@ -73,6 +74,7 @@ def AnalyzeVideo(video_path,detection_graph, image_tensor, boxes, scores, classe
 
 
             BoundingboxesBalls=[]
+            BouningboxesHoops=[]
             OriginalImg = img.copy()
 
 
@@ -106,13 +108,15 @@ def AnalyzeVideo(video_path,detection_graph, image_tensor, boxes, scores, classe
 
                     if (classesResult[0][i] == 2):  # Rim
 
-
-                        cv2.circle(img=img, center=(xCoor, yCoor), radius=10,
-                                   color=(255, 0, 0), thickness=-1)
+                        BouningboxesHoops.append(NewBox)
 
 
-                        cv2.putText(img, "HOOP", (xCoor - 65, yCoor - 65),
-                                    cv2.FONT_HERSHEY_COMPLEX, 3, (48, 124, 255), 8)
+                        # cv2.circle(img=img, center=(xCoor, yCoor), radius=10,
+                        #            color=(255, 0, 0), thickness=-1)
+                        #
+                        #
+                        # cv2.putText(img, "HOOP", (xCoor - 65, yCoor - 65),
+                        #             cv2.FONT_HERSHEY_COMPLEX, 3, (48, 124, 255), 8)
 
 
             if(len(BoundingboxesBalls)==0):
@@ -143,6 +147,37 @@ def AnalyzeVideo(video_path,detection_graph, image_tensor, boxes, scores, classe
                         cv2.rectangle(img, (x, y), (x + w, y + h),
                                       (0, 255, 0), 2)
                     BallTrackerInitialized=True
+
+            #############HOOP Detection ##
+
+            if(len(BouningboxesHoops)==0):
+                if(HoopTrackerInitialized==False):
+                    continue
+                else:
+                    (success, box) = trackerHoop.update(img)
+
+                    if(success):
+                        (x, y, w, h) = [int(v) for v in box]
+                        cv2.rectangle(img, (x, y), (x + w, y + h),
+                                      (48, 124, 255), 2)
+            else:
+                # if(BallTrackerInitialized==False):
+                    HighestScore=0
+                    BoundingboxOfHoop=None
+                    for i in BouningboxesHoops:
+                        if(i[4]>HighestScore):
+                            HighestScore=i[4]
+                            BoundingboxOfHoop=i
+
+                    trackerHoop = cv2.TrackerCSRT_create()
+                    trackerHoop.init(img, (BoundingboxOfHoop[0],BoundingboxOfHoop[1],BoundingboxOfHoop[2]-BoundingboxOfHoop[0],BoundingboxOfHoop[3]-BoundingboxOfHoop[1]))
+                    (success, box) = trackerHoop.update(img)
+
+                    if(success):
+                        (x, y, w, h) = [int(v) for v in box]
+                        cv2.rectangle(img, (x, y), (x + w, y + h),
+                                      (48, 124, 255), 5)
+                    HoopTrackerInitialized=True
 
 
 
