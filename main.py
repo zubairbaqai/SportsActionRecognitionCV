@@ -38,9 +38,9 @@ def AnalyzeVideo(video_path,detection_graph, image_tensor, boxes, scores, classe
     crf=17
 
     trackerBall=cv2.TrackerCSRT_create()
-    trackerHoop = cv2.TrackerCSRT_create()
+    # trackerHoop = cv2.TrackerCSRT_create()
 
-    #mot_tracker1 = Sort(max_age=3, min_hits=1, iou_threshold=0.15)
+    BallIDTracker = Sort(max_age=3, min_hits=1, iou_threshold=0.15)
 
 
     writer = skvideo.io.FFmpegWriter('YOLO.avi',
@@ -57,7 +57,7 @@ def AnalyzeVideo(video_path,detection_graph, image_tensor, boxes, scores, classe
 
 
 
-
+    BallTrackerInitialized=False
 
 
     with tf.Session(graph=detection_graph) as sess:
@@ -71,10 +71,10 @@ def AnalyzeVideo(video_path,detection_graph, image_tensor, boxes, scores, classe
                 [boxes, scores, classes, num_detections],
                 feed_dict={image_tensor: frame_expanded})
 
-            #track_bbs_ids = mot_tracker1.update(dets)
 
-            Boundingboxes=[]
+            BoundingboxesBalls=[]
             OriginalImg = img.copy()
+
 
             for i, box in enumerate(boxesResult[0]):
                 if (scoresResult[0][i] > 0.5):
@@ -85,19 +85,24 @@ def AnalyzeVideo(video_path,detection_graph, image_tensor, boxes, scores, classe
                     xmax = int((box[3] * width))
                     NewBox=[xmin,ymin,xmax,ymax,scoresResult[0][i]]
                     NewBox=np.asarray(NewBox)
-                    Boundingboxes.append(NewBox)
+
 
 
                     xCoor = int(np.mean([xmin, xmax]))
                     yCoor = int(np.mean([ymin, ymax]))
 
+
                     if (classesResult[0][i] == 1):  # basketball
-                        trackerBall = cv2.TrackerCSRT_create()
-                        trackerBall.init(img, (xmin,ymin,xmax-xmin,ymax-ymin))
-                        cv2.circle(img=img, center=(xCoor, yCoor), radius=10,
-                                   color=(255, 0, 0), thickness=-1)
-                        cv2.putText(img, "BALL", (xCoor - 50, yCoor - 50),
-                                    cv2.FONT_HERSHEY_COMPLEX, 3, (255, 0, 0), 8)
+                        BoundingboxesBalls.append(NewBox)
+
+
+
+                        # trackerBall = cv2.TrackerCSRT_create()
+                        # trackerBall.init(img, (xmin,ymin,xmax-xmin,ymax-ymin))
+                        # cv2.circle(img=img, center=(xCoor, yCoor), radius=10,
+                        #            color=(255, 0, 0), thickness=-1)
+                        # cv2.putText(img, "BALL", (xCoor - 50, yCoor - 50),
+                        #             cv2.FONT_HERSHEY_COMPLEX, 3, (255, 0, 0), 8)
 
                     if (classesResult[0][i] == 2):  # Rim
 
@@ -109,12 +114,37 @@ def AnalyzeVideo(video_path,detection_graph, image_tensor, boxes, scores, classe
                         cv2.putText(img, "HOOP", (xCoor - 65, yCoor - 65),
                                     cv2.FONT_HERSHEY_COMPLEX, 3, (48, 124, 255), 8)
 
-            (success, box) = trackerBall.update(img)
 
-            if(success):
-                (x, y, w, h) = [int(v) for v in box]
-                cv2.rectangle(img, (x, y), (x + w, y + h),
-                              (0, 255, 0), 2)
+            if(len(BoundingboxesBalls)==0):
+                if(BallTrackerInitialized==False):
+                    continue
+                else:
+                    (success, box) = trackerBall.update(img)
+
+                    if(success):
+                        (x, y, w, h) = [int(v) for v in box]
+                        cv2.rectangle(img, (x, y), (x + w, y + h),
+                                      (0, 255, 0), 2)
+            else:
+                # if(BallTrackerInitialized==False):
+                    HighestScore=0
+                    BoundingboxOfBall=None
+                    for i in BoundingboxesBalls:
+                        if(i[4]>HighestScore):
+                            HighestScore=i[4]
+                            BoundingboxOfBall=i
+
+                    trackerBall = cv2.TrackerCSRT_create()
+                    trackerBall.init(img, (BoundingboxOfBall[0],BoundingboxOfBall[1],BoundingboxOfBall[2]-BoundingboxOfBall[0],BoundingboxOfBall[3]-BoundingboxOfBall[1]))
+                    (success, box) = trackerBall.update(img)
+
+                    if(success):
+                        (x, y, w, h) = [int(v) for v in box]
+                        cv2.rectangle(img, (x, y), (x + w, y + h),
+                                      (0, 255, 0), 2)
+                    BallTrackerInitialized=True
+
+
 
 
             # flag=False
@@ -143,5 +173,5 @@ def AnalyzeVideo(video_path,detection_graph, image_tensor, boxes, scores, classe
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     detection_graph, image_tensor, boxes, scores, classes, num_detections = tensorflow_init()
-    AnalyzeVideo("./Videos/qb basketball zayd nabaa 1.mp4",detection_graph, image_tensor, boxes, scores, classes, num_detections)
+    AnalyzeVideo("./Videos/qb nabaa basketball 1.mp4",detection_graph, image_tensor, boxes, scores, classes, num_detections)
 
